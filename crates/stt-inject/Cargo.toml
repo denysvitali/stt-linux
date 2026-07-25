@@ -1,0 +1,13 @@
+[package]
+name = "stt-inject"
+description = "Text injection backends for stt-linux (wtype, clipboard, uinput, input-method)"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+stt-core.workspace = true
+anyhow.workspace = true
+tracing.workspace = true

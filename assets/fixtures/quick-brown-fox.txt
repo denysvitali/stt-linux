@@ -1,0 +1,1 @@
+The quick brown fox jumps over the lazy dog. Speech recognition on Linux should work offline and respect your privacy.

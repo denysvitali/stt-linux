@@ -1,0 +1,20 @@
+[package]
+name = "stt-overlay"
+description = "Wayland layer-shell recording indicator for stt-linux"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+anyhow.workspace = true
+calloop = "0.14.4"
+fontdb = "0.23.0"
+fontdue = "0.9.3"
+smithay-client-toolkit = { version = "0.20.0", default-features = false, features = ["calloop"] }
+tracing.workspace = true
+wayland-client.workspace = true
+
+[dev-dependencies]
+tracing-subscriber = { workspace = true, features = ["env-filter"] }

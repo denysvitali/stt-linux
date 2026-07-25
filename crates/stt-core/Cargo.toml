@@ -1,0 +1,40 @@
+[package]
+name = "stt-core"
+description = "Core pipeline for stt-linux: config, audio, VAD, ASR engines, post-processing"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+anyhow.workspace = true
+thiserror.workspace = true
+serde.workspace = true
+toml.workspace = true
+tracing.workspace = true
+directories.workspace = true
+wayland-client.workspace = true
+regex.workspace = true
+cpal.workspace = true
+rubato = "4.0.0"
+hound.workspace = true
+ringbuf = "0.5.1"
+parakeet-rs = "0.3.6"
+ureq = { version = "3.3.0", features = ["json"] }
+indicatif = "0.18.6"
+
+[features]
+default = []
+# ONNX Runtime execution providers. CPU is always available; these forward to
+# the matching parakeet-rs feature so `execution_provider` in config can select
+# them. Intel iGPUs want `openvino`; `webgpu` is the portable GPU path.
+openvino = ["parakeet-rs/openvino"]
+webgpu = ["parakeet-rs/webgpu"]
+cuda = ["parakeet-rs/cuda"]
+# Golden-audio tests. Off by default because they need a downloaded model,
+# so a clean checkout still passes `cargo test`.
+model-tests = []
+
+[dev-dependencies]
+tempfile = "3"

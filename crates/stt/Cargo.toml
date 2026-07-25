@@ -1,0 +1,30 @@
+[package]
+name = "stt"
+description = "Command-line client for the stt-linux dictation daemon"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[[bin]]
+name = "stt"
+path = "src/main.rs"
+
+[features]
+default = []
+# Forwarded to stt-core so `cargo install --features cuda` reaches the engine.
+openvino = ["stt-core/openvino"]
+webgpu = ["stt-core/webgpu"]
+cuda = ["stt-core/cuda"]
+
+[dependencies]
+stt-core.workspace = true
+stt-ipc.workspace = true
+stt-inject.workspace = true
+stt-activate.workspace = true
+anyhow.workspace = true
+clap.workspace = true
+serde_json.workspace = true
+indicatif = "0.18.6"
+tracing-subscriber = { workspace = true, features = ["env-filter"] }
