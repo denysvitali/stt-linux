@@ -6,8 +6,8 @@
 //! rational ratio like 48000:16000.
 
 use anyhow::{Context, Result};
-use rubato::{Fft, FixedSync, Indexing, Resampler};
 use rubato::audioadapter_buffers::direct::InterleavedSlice;
+use rubato::{Fft, FixedSync, Indexing, Resampler};
 
 /// Frames of input consumed per `process` call. 1024 at 48 kHz is ~21 ms,
 /// which keeps the level meter responsive without thrashing the FFT.
@@ -146,9 +146,7 @@ mod tests {
     fn sine(freq: f32, rate: u32, secs: f32) -> Vec<f32> {
         let n = (rate as f32 * secs) as usize;
         (0..n)
-            .map(|i| {
-                (std::f32::consts::TAU * freq * i as f32 / rate as f32).sin() * 0.5
-            })
+            .map(|i| (std::f32::consts::TAU * freq * i as f32 / rate as f32).sin() * 0.5)
             .collect()
     }
 

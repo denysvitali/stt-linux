@@ -32,8 +32,8 @@ pub fn write_mono_16k(path: &Path, samples: &[f32]) -> Result<()> {
 
 /// Read any WAV into mono f32, resampling to 16 kHz if needed.
 pub fn read_as_mono_16k(path: &Path) -> Result<Vec<f32>> {
-    let mut reader = hound::WavReader::open(path)
-        .with_context(|| format!("opening {}", path.display()))?;
+    let mut reader =
+        hound::WavReader::open(path).with_context(|| format!("opening {}", path.display()))?;
     let spec = reader.spec();
 
     let interleaved: Vec<f32> = match spec.sample_format {

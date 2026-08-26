@@ -135,7 +135,10 @@ mod tests {
             recording_ms: Some(2400),
         });
         let line = encode_line(&report).unwrap();
-        assert_eq!(serde_json::from_str::<Response>(line.trim()).unwrap(), report);
+        assert_eq!(
+            serde_json::from_str::<Response>(line.trim()).unwrap(),
+            report
+        );
 
         let err = Response::Error {
             message: "no speech detected".into(),

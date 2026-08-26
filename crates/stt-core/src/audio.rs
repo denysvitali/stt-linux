@@ -112,10 +112,7 @@ pub fn find_input_device(selector: &str) -> Result<cpal::Device> {
         return Ok(candidates.swap_remove(i));
     }
 
-    let available: Vec<_> = candidates
-        .iter()
-        .filter_map(device_id)
-        .collect();
+    let available: Vec<_> = candidates.iter().filter_map(device_id).collect();
     anyhow::bail!(
         "no audio input device matching `{selector}`; available ids: {}",
         if available.is_empty() {
@@ -142,9 +139,9 @@ pub fn default_input_device() -> Result<cpal::Device> {
     let host = cpal::default_host();
 
     if let Ok(devices) = host.input_devices()
-        && let Some(pw) = devices.into_iter().find(|d| {
-            device_id(d).as_deref() == Some(PIPEWIRE_PCM)
-        })
+        && let Some(pw) = devices
+            .into_iter()
+            .find(|d| device_id(d).as_deref() == Some(PIPEWIRE_PCM))
     {
         tracing::debug!("using the PipeWire PCM as the default input");
         return Ok(pw);

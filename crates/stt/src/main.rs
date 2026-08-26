@@ -328,7 +328,11 @@ fn model_list() -> Result<()> {
         } else if missing.len() == spec.files.len() {
             "not downloaded".to_string()
         } else {
-            format!("incomplete ({} of {} files)", missing.len(), spec.files.len())
+            format!(
+                "incomplete ({} of {} files)",
+                missing.len(),
+                spec.files.len()
+            )
         };
         println!(
             "  {:<28} {:>7}  {state}\n      {}",
@@ -358,7 +362,11 @@ fn model_download(name: Option<&str>) -> Result<()> {
 
     let dir = stt_core::paths::models_dir()?.join(spec.dir_name);
     if spec.is_complete(&dir) {
-        println!("{} is already installed at {}", spec.dir_name, dir.display());
+        println!(
+            "{} is already installed at {}",
+            spec.dir_name,
+            dir.display()
+        );
         return Ok(());
     }
 

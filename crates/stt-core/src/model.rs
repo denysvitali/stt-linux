@@ -132,8 +132,7 @@ pub type ProgressFn<'a> = &'a mut dyn FnMut(&str, u64, Option<u64>);
 /// complete model.
 pub fn download(spec: &ModelSpec, progress: ProgressFn<'_>) -> Result<PathBuf> {
     let dir = crate::paths::models_dir()?.join(spec.dir_name);
-    std::fs::create_dir_all(&dir)
-        .with_context(|| format!("creating {}", dir.display()))?;
+    std::fs::create_dir_all(&dir).with_context(|| format!("creating {}", dir.display()))?;
 
     for file in spec.files {
         let dest = dir.join(file.name);
@@ -164,16 +163,12 @@ fn download_one(
 
     let total = response.body().content_length();
     let part = dest.with_extension("part");
-    let mut out = std::fs::File::create(&part)
-        .with_context(|| format!("creating {}", part.display()))?;
+    let mut out =
+        std::fs::File::create(&part).with_context(|| format!("creating {}", part.display()))?;
 
     // No overall size limit: these files are hundreds of megabytes and ureq
     // caps reads at 10 MB by default.
-    let mut reader = response
-        .body_mut()
-        .with_config()
-        .limit(u64::MAX)
-        .reader();
+    let mut reader = response.body_mut().with_config().limit(u64::MAX).reader();
 
     let mut buf = vec![0u8; 256 * 1024];
     let mut done: u64 = 0;

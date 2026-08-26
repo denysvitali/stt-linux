@@ -115,7 +115,14 @@ impl<'a> Canvas<'a> {
     }
 
     pub fn circle(&mut self, cx: f32, cy: f32, radius: f32, c: Rgba) {
-        self.rounded_rect(cx - radius, cy - radius, radius * 2.0, radius * 2.0, radius, c);
+        self.rounded_rect(
+            cx - radius,
+            cy - radius,
+            radius * 2.0,
+            radius * 2.0,
+            radius,
+            c,
+        );
     }
 
     /// A pane of glass: soft drop shadow, translucent body, and a specular rim
@@ -132,13 +139,7 @@ impl<'a> Canvas<'a> {
     /// `light` is the direction light arrives from, in radians, measured from
     /// the positive x axis with y pointing down.
     pub fn glass_pill(&mut self, geom: PillGeometry, style: GlassStyle, light: f32) {
-        let PillGeometry {
-            x,
-            y,
-            w,
-            h,
-            radius,
-        } = geom;
+        let PillGeometry { x, y, w, h, radius } = geom;
         if w <= 0.0 || h <= 0.0 {
             return;
         }
@@ -214,15 +215,7 @@ impl Canvas<'_> {
     /// conversational volume they collapse into a row of evenly spaced dots,
     /// which is both ugly and easily mistaken for an ellipsis. A ribbon
     /// degrades to a clean hairline at silence instead.
-    pub fn waveform(
-        &mut self,
-        x: f32,
-        cy: f32,
-        w: f32,
-        max_amp: f32,
-        samples: &[f32],
-        c: Rgba,
-    ) {
+    pub fn waveform(&mut self, x: f32, cy: f32, w: f32, max_amp: f32, samples: &[f32], c: Rgba) {
         if samples.len() < 2 || w <= 0.0 {
             return;
         }
@@ -463,7 +456,12 @@ mod tests {
             let h = i as f32 / 7.0;
             c.rounded_rect(1.5, 2.25, w, h, w / 2.0, Rgba::new(1, 2, 3, 128));
             c.rounded_rect(0.1, 0.2, w, h, h / 2.0, Rgba::new(1, 2, 3, 128));
-            c.circle(i as f32 / 5.0, i as f32 / 11.0, w / 2.0, Rgba::new(4, 5, 6, 90));
+            c.circle(
+                i as f32 / 5.0,
+                i as f32 / 11.0,
+                w / 2.0,
+                Rgba::new(4, 5, 6, 90),
+            );
         }
     }
 
@@ -476,7 +474,11 @@ mod tests {
             c.circle(8.0, 8.0, 6.0, Rgba::new(255, 255, 255, 255));
         }
         assert_eq!(pixel(&buf, 16, 8, 8).3, 255, "circle centre must be solid");
-        assert_eq!(pixel(&buf, 16, 0, 0).3, 0, "circle must not fill the corner");
+        assert_eq!(
+            pixel(&buf, 16, 0, 0).3,
+            0,
+            "circle must not fill the corner"
+        );
     }
 
     #[test]

@@ -36,7 +36,10 @@ pub trait Injector: Send {
 ///
 /// Returns the injector and the probe that justified choosing it, so the
 /// daemon can log and report what it settled on.
-pub fn build(config: &InjectConfig, globals: Option<&Globals>) -> Result<(Box<dyn Injector>, Probe)> {
+pub fn build(
+    config: &InjectConfig,
+    globals: Option<&Globals>,
+) -> Result<(Box<dyn Injector>, Probe)> {
     let probes = probe_all(globals);
 
     for wanted in &config.backends {
@@ -57,11 +60,7 @@ pub fn build(config: &InjectConfig, globals: Option<&Globals>) -> Result<(Box<dy
         }
     }
 
-    let tried: Vec<_> = config
-        .backends
-        .iter()
-        .map(|b| format!("{b:?}"))
-        .collect();
+    let tried: Vec<_> = config.backends.iter().map(|b| format!("{b:?}")).collect();
     anyhow::bail!(
         "no usable text injector (tried: {}); run `stt doctor` for details",
         tried.join(", ")
@@ -111,7 +110,10 @@ impl Injector for CopyOnlyInjector {
             return Ok(());
         }
         copy_to_clipboard(text)?;
-        tracing::info!(chars = text.len(), "copied to the clipboard (copy-only mode)");
+        tracing::info!(
+            chars = text.len(),
+            "copied to the clipboard (copy-only mode)"
+        );
         Ok(())
     }
 

@@ -116,7 +116,9 @@ mod tests {
         let args = Chord::parse("ctrl+shift+v").unwrap().to_wtype_args();
         assert_eq!(
             args,
-            vec!["-M", "ctrl", "-M", "shift", "-k", "v", "-m", "shift", "-m", "ctrl"]
+            vec![
+                "-M", "ctrl", "-M", "shift", "-k", "v", "-m", "shift", "-m", "ctrl"
+            ]
         );
     }
 
@@ -125,14 +127,20 @@ mod tests {
         let args = Chord::parse("ctrl+alt+shift+x").unwrap().to_wtype_args();
         let pressed = args.iter().filter(|a| *a == "-M").count();
         let released = args.iter().filter(|a| *a == "-m").count();
-        assert_eq!(pressed, released, "a stuck modifier would break the session");
+        assert_eq!(
+            pressed, released,
+            "a stuck modifier would break the session"
+        );
         assert_eq!(pressed, 3);
     }
 
     #[test]
     fn rejects_malformed_chords() {
         assert!(Chord::parse("ctrl+").is_err());
-        assert!(Chord::parse("ctrl").is_err(), "modifiers alone are not a chord");
+        assert!(
+            Chord::parse("ctrl").is_err(),
+            "modifiers alone are not a chord"
+        );
         assert!(Chord::parse("ctrl+a+b").is_err(), "two real keys");
         assert!(Chord::parse("").is_err());
     }

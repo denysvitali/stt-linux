@@ -23,10 +23,16 @@ use stt_ipc::DaemonState;
 /// What a completed dictation did, for logging and notifications.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Outcome {
-    Injected { text: String, via: String },
+    Injected {
+        text: String,
+        via: String,
+    },
     /// Focus moved while we were transcribing, so the text went to the
     /// clipboard instead of into the wrong window.
-    ClipboardOnly { text: String, reason: String },
+    ClipboardOnly {
+        text: String,
+        reason: String,
+    },
     /// The recording contained no speech.
     NoSpeech,
     Cancelled,
@@ -229,7 +235,10 @@ impl Session {
                 anyhow::bail!("not recording");
             }
             inner.state = DaemonState::Transcribing;
-            inner.active.take().context("recording state went missing")?
+            inner
+                .active
+                .take()
+                .context("recording state went missing")?
         };
         if let Some(overlay) = &self.overlay {
             overlay.transcribing();
@@ -262,7 +271,10 @@ impl Session {
                 anyhow::bail!("not recording");
             }
             inner.state = DaemonState::Transcribing;
-            inner.active.take().context("recording state went missing")?
+            inner
+                .active
+                .take()
+                .context("recording state went missing")?
         };
         let result = self.finish(active);
         self.state.lock().unwrap().state = DaemonState::Ready;
@@ -323,7 +335,10 @@ impl Session {
         let redundant = self.injector.lock().unwrap().leaves_text_on_clipboard();
 
         // The safety net: whatever happens next, the text is recoverable.
-        if always_copy && !redundant && let Err(e) = stt_inject::copy_to_clipboard(text) {
+        if always_copy
+            && !redundant
+            && let Err(e) = stt_inject::copy_to_clipboard(text)
+        {
             tracing::warn!(error = %format!("{e:#}"), "could not copy to the clipboard");
         }
 
@@ -495,11 +510,7 @@ mod tests {
     fn reload_flags_engine_changes_as_needing_restart() {
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join("config.toml");
-        std::fs::write(
-            &path,
-            "[engine]\nmodel_dir = \"something-else\"\n",
-        )
-        .unwrap();
+        std::fs::write(&path, "[engine]\nmodel_dir = \"something-else\"\n").unwrap();
 
         let s = session();
         let restart = s.reload(&path).unwrap();
@@ -528,6 +539,9 @@ mod tests {
         let s = session();
         assert!(s.reload(&path).is_err());
         // The live config is untouched.
-        assert_eq!(s.max_duration_secs(), Config::default().audio.max_duration_secs);
+        assert_eq!(
+            s.max_duration_secs(),
+            Config::default().audio.max_duration_secs
+        );
     }
 }

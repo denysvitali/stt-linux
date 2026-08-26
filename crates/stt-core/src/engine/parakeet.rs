@@ -30,9 +30,8 @@ impl ParakeetEngine {
             dir.display()
         );
 
-        let exec = ExecutionConfig::new().with_execution_provider(map_provider(
-            config.execution_provider,
-        ));
+        let exec =
+            ExecutionConfig::new().with_execution_provider(map_provider(config.execution_provider));
 
         let started = std::time::Instant::now();
         let inner = ParakeetTDT::from_pretrained(&dir, Some(exec))

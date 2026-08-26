@@ -83,7 +83,11 @@ impl Dispatch<wl_registry::WlRegistry, ()> for Globals {
 /// Best-effort identification of the running compositor, for diagnostics only.
 /// Never branch behaviour on this — branch on [`Globals`] instead.
 pub fn compositor_name() -> String {
-    for var in ["XDG_CURRENT_DESKTOP", "XDG_SESSION_DESKTOP", "DESKTOP_SESSION"] {
+    for var in [
+        "XDG_CURRENT_DESKTOP",
+        "XDG_SESSION_DESKTOP",
+        "DESKTOP_SESSION",
+    ] {
         if let Ok(v) = std::env::var(var)
             && !v.is_empty()
         {

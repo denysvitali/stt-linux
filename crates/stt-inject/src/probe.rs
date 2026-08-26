@@ -114,7 +114,10 @@ fn probe_wtype(globals: Option<&Globals>) -> Probe {
         return Probe::no(b, "`wtype` not found on $PATH");
     };
     match globals {
-        None => Probe::no(b, format!("{} found, but no Wayland session", bin.display())),
+        None => Probe::no(
+            b,
+            format!("{} found, but no Wayland session", bin.display()),
+        ),
         Some(g) if !g.has(wayland::VIRTUAL_KEYBOARD) => Probe::no(
             b,
             format!(
@@ -237,7 +240,11 @@ mod tests {
     #[test]
     fn probe_all_covers_every_backend() {
         let probes = probe_all(None);
-        assert_eq!(probes.len(), 5, "every InjectBackend variant must be probed");
+        assert_eq!(
+            probes.len(),
+            5,
+            "every InjectBackend variant must be probed"
+        );
     }
 
     #[test]

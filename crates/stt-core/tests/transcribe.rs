@@ -20,7 +20,13 @@ use stt_core::config::EngineConfig;
 fn words(s: &str) -> Vec<String> {
     s.to_lowercase()
         .chars()
-        .map(|c| if c.is_alphanumeric() || c == '\'' { c } else { ' ' })
+        .map(|c| {
+            if c.is_alphanumeric() || c == '\'' {
+                c
+            } else {
+                ' '
+            }
+        })
         .collect::<String>()
         .split_whitespace()
         .map(str::to_owned)

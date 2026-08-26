@@ -61,7 +61,10 @@ pub fn current() -> Focus {
 /// The `address` field is a stable per-window handle, which is what we compare
 /// on — class and title both change while a window stays the same.
 fn hyprland_focus() -> Focus {
-    let Ok(output) = Command::new("hyprctl").args(["activewindow", "-j"]).output() else {
+    let Ok(output) = Command::new("hyprctl")
+        .args(["activewindow", "-j"])
+        .output()
+    else {
         return Focus::Unknown;
     };
     if !output.status.success() {
@@ -154,7 +157,10 @@ mod tests {
     #[test]
     fn garbage_is_unknown_not_a_panic() {
         assert_eq!(parse_hyprland_activewindow("not json"), Focus::Unknown);
-        assert_eq!(parse_hyprland_activewindow("{\"other\": 1}"), Focus::Unknown);
+        assert_eq!(
+            parse_hyprland_activewindow("{\"other\": 1}"),
+            Focus::Unknown
+        );
     }
 
     #[test]

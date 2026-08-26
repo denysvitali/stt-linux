@@ -267,8 +267,8 @@ impl Config {
         }
         let text = std::fs::read_to_string(path)
             .with_context(|| format!("reading config {}", path.display()))?;
-        let config: Self = toml::from_str(&text)
-            .with_context(|| format!("parsing config {}", path.display()))?;
+        let config: Self =
+            toml::from_str(&text).with_context(|| format!("parsing config {}", path.display()))?;
         config.validate()?;
         Ok(config)
     }
@@ -363,7 +363,8 @@ to = "c"
 
     #[test]
     fn bad_regex_is_caught_at_load() {
-        let cfg: Config = toml::from_str("[[replacements]]\npattern = \"(\"\nto = \"x\"\n").unwrap();
+        let cfg: Config =
+            toml::from_str("[[replacements]]\npattern = \"(\"\nto = \"x\"\n").unwrap();
         let err = cfg.validate().unwrap_err();
         assert!(format!("{err:#}").contains("invalid regex"), "{err:#}");
     }
@@ -380,6 +381,9 @@ to = "c"
             model_dir: "/opt/models/tdt".into(),
             ..Default::default()
         };
-        assert_eq!(cfg.resolved_model_dir().unwrap(), Path::new("/opt/models/tdt"));
+        assert_eq!(
+            cfg.resolved_model_dir().unwrap(),
+            Path::new("/opt/models/tdt")
+        );
     }
 }

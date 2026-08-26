@@ -21,10 +21,7 @@ impl ControlSocket {
     pub fn bind(path: &Path) -> Result<Self> {
         if path.exists() {
             match UnixStream::connect(path) {
-                Ok(_) => bail!(
-                    "another sttd is already listening on {}",
-                    path.display()
-                ),
+                Ok(_) => bail!("another sttd is already listening on {}", path.display()),
                 Err(_) => {
                     tracing::warn!(path = %path.display(), "removing stale socket");
                     std::fs::remove_file(path)

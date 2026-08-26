@@ -12,8 +12,8 @@ use clap::Parser;
 use std::io::{BufRead, BufReader, Write};
 use std::os::unix::net::UnixStream;
 use std::path::PathBuf;
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 use stt_ipc::{DaemonState, Request, Response, StatusReport, encode_line};
 
 use session::{Outcome, Session};
@@ -94,7 +94,10 @@ impl Daemon {
             Request::Reload => match self.session.reload(&self.config_path) {
                 Ok(needs_restart) if needs_restart.is_empty() => Response::Ok,
                 Ok(needs_restart) => Response::Error {
-                    message: format!("reloaded, but these need a restart: {}", needs_restart.join(", ")),
+                    message: format!(
+                        "reloaded, but these need a restart: {}",
+                        needs_restart.join(", ")
+                    ),
                 },
                 Err(e) => err(e),
             },

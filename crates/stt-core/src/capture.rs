@@ -82,8 +82,7 @@ impl Recording {
             samples: Mutex::new(Vec::new()),
         });
 
-        let (mut producer, mut consumer) =
-            ringbuf::HeapRb::<f32>::new(RING_FRAMES).split();
+        let (mut producer, mut consumer) = ringbuf::HeapRb::<f32>::new(RING_FRAMES).split();
 
         // --- the real-time callback ---------------------------------------
         let cb_shared = Arc::clone(&shared);
@@ -111,9 +110,8 @@ impl Recording {
                     config,
                     move |data: &[$sample], _: &cpal::InputCallbackInfo| {
                         convert_scratch.clear();
-                        convert_scratch.extend(
-                            data.iter().map(|s| cpal::Sample::to_sample::<f32>(*s)),
-                        );
+                        convert_scratch
+                            .extend(data.iter().map(|s| cpal::Sample::to_sample::<f32>(*s)));
                         push_mono(&convert_scratch);
                     },
                     on_error,
@@ -178,14 +176,22 @@ impl Recording {
                     produced.clear();
                     resampler.push(block, &mut produced)?;
                     if !produced.is_empty() {
-                        worker_shared.samples.lock().unwrap().extend_from_slice(&produced);
+                        worker_shared
+                            .samples
+                            .lock()
+                            .unwrap()
+                            .extend_from_slice(&produced);
                     }
                 }
 
                 produced.clear();
                 resampler.finish(&mut produced)?;
                 if !produced.is_empty() {
-                    worker_shared.samples.lock().unwrap().extend_from_slice(&produced);
+                    worker_shared
+                        .samples
+                        .lock()
+                        .unwrap()
+                        .extend_from_slice(&produced);
                 }
                 Ok(())
             })

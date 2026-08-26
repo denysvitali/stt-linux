@@ -34,7 +34,11 @@ pub fn report() -> Result<(String, bool)> {
 
     let globals = match wayland::Globals::probe() {
         Ok(g) => {
-            writeln!(s, "  {OK} registry    {} globals advertised", g.globals.len())?;
+            writeln!(
+                s,
+                "  {OK} registry    {} globals advertised",
+                g.globals.len()
+            )?;
             Some(g)
         }
         Err(e) => {
@@ -93,7 +97,12 @@ pub fn report() -> Result<(String, bool)> {
                     .collect()
             })
             .unwrap_or_default();
-        writeln!(s, "  {OK} {:?} at {}", config.engine.backend, model_dir.display())?;
+        writeln!(
+            s,
+            "  {OK} {:?} at {}",
+            config.engine.backend,
+            model_dir.display()
+        )?;
         if files.is_empty() {
             usable = false;
             writeln!(s, "  {BAD} directory is empty — run `stt model download`")?;
@@ -150,7 +159,11 @@ pub fn report() -> Result<(String, bool)> {
                 usable = false;
                 writeln!(s, "  {BAD} no input devices enumerated")?;
             } else {
-                writeln!(s, "  {OK} {} other devices selectable:", found.devices.len())?;
+                writeln!(
+                    s,
+                    "  {OK} {} other devices selectable:",
+                    found.devices.len()
+                )?;
                 for d in &found.devices {
                     let cfg = d.default_config.as_deref().unwrap_or("unknown format");
                     writeln!(
@@ -168,7 +181,11 @@ pub fn report() -> Result<(String, bool)> {
     }
 
     // ---- injection -----------------------------------------------------
-    writeln!(s, "\nText injection (configured order: {:?})", config.inject.backends)?;
+    writeln!(
+        s,
+        "\nText injection (configured order: {:?})",
+        config.inject.backends
+    )?;
     let inject_probes = stt_inject::probe_all(globals.as_ref());
     let mut chosen = None;
     for backend in &config.inject.backends {
@@ -225,8 +242,14 @@ pub fn report() -> Result<(String, bool)> {
         )?;
     }
     writeln!(s, "\n  Bind these in your compositor:")?;
-    writeln!(s, "    bind  = SUPER, D, exec, stt toggle      # toggle mode")?;
-    writeln!(s, "    bind  = SUPER, D, exec, stt start       # push-to-talk")?;
+    writeln!(
+        s,
+        "    bind  = SUPER, D, exec, stt toggle      # toggle mode"
+    )?;
+    writeln!(
+        s,
+        "    bind  = SUPER, D, exec, stt start       # push-to-talk"
+    )?;
     writeln!(s, "    bindr = SUPER, D, exec, stt stop")?;
 
     // ---- daemon --------------------------------------------------------

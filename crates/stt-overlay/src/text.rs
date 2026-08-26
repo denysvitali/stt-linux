@@ -66,11 +66,14 @@ impl TextRenderer {
 
         let data = db
             .with_face_data(id, |data, index| {
-                Font::from_bytes(data, FontSettings {
-                    collection_index: index,
-                    scale: size,
-                    ..FontSettings::default()
-                })
+                Font::from_bytes(
+                    data,
+                    FontSettings {
+                        collection_index: index,
+                        scale: size,
+                        ..FontSettings::default()
+                    },
+                )
             })
             .context("reading font data")?
             .map_err(|e| anyhow::anyhow!("parsing font: {e}"))?;
@@ -291,9 +294,15 @@ mod tests {
         let Some(mut r) = renderer() else { return };
         let s = "the quick brown fox jumps over the lazy dog";
         let fitted = r.fit_tail(s, 120.0);
-        assert!(fitted.starts_with('…'), "should mark the elision: {fitted:?}");
+        assert!(
+            fitted.starts_with('…'),
+            "should mark the elision: {fitted:?}"
+        );
         // The tail is what survives, because that is the newest speech.
-        assert!(s.ends_with(fitted.trim_start_matches(['…', ' '])), "{fitted:?}");
+        assert!(
+            s.ends_with(fitted.trim_start_matches(['…', ' '])),
+            "{fitted:?}"
+        );
         assert!(r.measure(&fitted) <= 121.0, "still too wide: {fitted:?}");
     }
 
@@ -333,7 +342,10 @@ mod tests {
         // No word boundary can help here; a character cut is correct.
         let fitted = r.fit_tail("Donaudampfschifffahrtsgesellschaft", 60.0);
         assert!(fitted.starts_with('…'));
-        assert!(fitted.chars().count() > 2, "showed nothing at all: {fitted:?}");
+        assert!(
+            fitted.chars().count() > 2,
+            "showed nothing at all: {fitted:?}"
+        );
     }
 
     #[test]
@@ -376,6 +388,12 @@ mod tests {
         let (w, h) = (300, 40);
         let mut buf = vec![0u8; (w * h * 4) as usize];
         let mut c = Canvas::new(&mut buf, w, h);
-        r.draw(&mut c, 2.0, 2.0, "café — naïve — Привет", Rgba::new(255, 255, 255, 255));
+        r.draw(
+            &mut c,
+            2.0,
+            2.0,
+            "café — naïve — Привет",
+            Rgba::new(255, 255, 255, 255),
+        );
     }
 }
