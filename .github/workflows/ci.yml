@@ -24,14 +24,38 @@ jobs:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
       - name: Install native build dependencies
-        # libssl-dev for openssl-sys (via ureq); already on the runner image,
-        # but pinned here so the job does not silently depend on that.
+        # openssl-sys (via ort-sys/ureq) needs libssl-dev; cpal needs the
+        # ALSA headers. The runner image ships some of this, but pinning it
+        # here keeps the job working when the image changes.
         run: |
           sudo apt-get update
-          sudo apt-get install -y --no-install-recommends libssl-dev pkg-config
+          sudo apt-get install -y --no-install-recommends \
+            libssl-dev pkg-config libasound2-dev
       - uses: Swatinem/rust-cache@v2
-      - run: cargo clippy --all-targets --locked
-      - run: cargo test --workspace --locked
+        with:
+          # Keep partially-built artifacts even when a job fails, so
+          # iteration on a red build does not start from scratch.
+          cache-on-failure: true
+      - name: Run clippy
+        run: |
+          set -o pipefail
+          cargo clippy --all-targets --locked 2>&1 | tee /tmp/clippy.log
+      - name: Run tests
+        run: |
+          set -o pipefail
+          cargo test --workspace --locked 2>&1 | tee /tmp/test.log
+      # The runner's own logs need a sign-in to read; surfacing the error
+      # lines as check annotations makes them visible through the public
+      # API (and to anyone browsing the commit).
+      - name: Surface failures as annotations
+        if: failure()
+        run: |
+          for log in /tmp/clippy.log /tmp/test.log; do
+            [ -f "$log" ] || continue
+            grep -E '^error|^ *--> ' "$log" | head -10 | while IFS= read -r line; do
+              echo "::error::${line:0:480}"
+            done
+          done
 
   screenshots:
     # Renders the overlay demo under a headless wlroots compositor and
@@ -53,7 +77,19 @@ jobs:
       - name: Build the overlay demo
         run: cargo build --release --locked -p stt-overlay --example demo
       - name: Capture the demo under headless sway
-        run: .github/scripts/capture-screenshots.sh
+        run: |
+          set -o pipefail
+          .github/scripts/capture-screenshots.sh 2>&1 | tee /tmp/capture.log
+      # Same sign-in problem as the test job: push the interesting lines out
+      # as annotations.
+      - name: Surface failures as annotations
+        if: failure()
+        run: |
+          n=0
+          while IFS= read -r chunk; do
+            n=$((n+1)); [ $n -gt 10 ] && break
+            echo "::error::${chunk//$'\n'/%0A}"
+          done < <(tail -c 4800 /tmp/capture.log | fold -w 480)
       - name: Commit refreshed screenshots
         run: |
           git config user.name "github-actions[bot]"

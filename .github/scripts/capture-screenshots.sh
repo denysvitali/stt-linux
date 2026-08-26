@@ -31,6 +31,14 @@ cleanup() {
 }
 trap cleanup EXIT
 
+# Whatever step fails first, the compositor's own log is the prime suspect.
+on_err() {
+  echo "capture failed; sway log follows" >&2
+  cat "$XDG_RUNTIME_DIR/sway.log" >&2 || true
+  ls -la "$XDG_RUNTIME_DIR" >&2 || true
+}
+trap on_err ERR
+
 # Wait for the compositor's Wayland socket to appear.
 sock=""
 for _ in $(seq 1 50); do
