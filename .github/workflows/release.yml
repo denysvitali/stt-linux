@@ -47,6 +47,17 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
 
+      - name: Install git-cliff
+        # Install git-cliff on PATH so the Derive step below (and any
+        # later steps that want to call `git cliff` directly) can run.
+        # The `orhun/git-cliff-action@v4` step further down installs the
+        # same binary in its own way for changelog generation.
+        uses: taiki-e/install-action@git-cliff
+        with:
+          # Pin a version we know exists. The latest release we tested
+          # against locally; bump on the next sweep.
+          version: v2.13.1
+
       - name: Derive next version
         id: version
         # On a tag push, github.ref_name is the tag (e.g. v0.1.0) and we
@@ -65,21 +76,10 @@ jobs:
           elif [ -n "${{ inputs.tag }}" ]; then
             echo "tag=${{ inputs.tag }}" >> "$GITHUB_OUTPUT"
           else
-            tag=$(/tmp/tools/bin/git-cliff --bumped-version --tag-pattern 'v[0-9]+\.[0-9]+\.[0-9]+' --config cliff.toml)
+            tag=$(git cliff --bumped-version --tag-pattern 'v[0-9]+\.[0-9]+\.[0-9]+' --config cliff.toml)
             case "${tag}" in v*) ;; *) tag="v${tag}" ;; esac
             echo "tag=${tag}" >> "$GITHUB_OUTPUT"
           fi
-
-      - name: Install git-cliff
-        # The action under the next step also installs git-cliff, but
-        # we need the binary on PATH now so the Derive step above can
-        # call it. The action will reuse the cached install.
-        run: |
-          curl -sSfL https://github.com/orhun/git-cliff/releases/download/v2.13.1/git-cliff-2.13.1-x86_64-unknown-linux-gnu.tar.gz \
-            -o /tmp/cliff.tar.gz
-          tar -xzf /tmp/cliff.tar.gz -C /tmp
-          install -m755 /tmp/git-cliff-2.13.1/git-cliff /tmp/tools/bin/git-cliff
-          /tmp/tools/bin/git-cliff --version
 
       - name: Generate changelog
         id: changelog
