@@ -25,17 +25,28 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
       - name: Install native build dependencies
         # openssl-sys (via ort-sys/ureq) needs libssl-dev; cpal needs the
-        # ALSA headers. The runner image ships some of this, but pinning it
-        # here keeps the job working when the image changes.
+        # ALSA headers. wl-clipboard gives the inject tests the binary
+        # paths they probe for. wtype is not packaged on Ubuntu noble, so
+        # it is built from source below; meson + ninja are needed for that
+        # step.
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
-            libssl-dev pkg-config libasound2-dev
+            libssl-dev pkg-config libasound2-dev \
+            libxkbcommon-dev wl-clipboard meson ninja-build cmake build-essential
       - uses: Swatinem/rust-cache@v2
         with:
           # Keep partially-built artifacts even when a job fails, so
           # iteration on a red build does not start from scratch.
           cache-on-failure: true
+      - name: Build wtype
+        # wtype is not packaged on Ubuntu noble; the inject probes need it on
+        # $PATH to take the protocol-missing branch. ~30 s meson build.
+        run: |
+          git clone --depth=1 https://github.com/atx/wtype /tmp/wtype
+          meson setup /tmp/wtype/build /tmp/wtype >/dev/null
+          sudo ninja -C /tmp/wtype/build install >/dev/null
+          which wtype && wtype --version
       - name: Run clippy
         run: |
           set -o pipefail
@@ -58,9 +69,13 @@ jobs:
           done
 
   screenshots:
-    # Renders the overlay demo under a headless wlroots compositor and
-    # captures frames with grim, so the README shows real pixels that stay
-    # current. Only pushes to master, since it commits its output.
+    # Renders two frames of the overlay (listening + live transcript) into
+    # PNGs using the same paint and text paths the live surface uses, so the
+    # README always shows real pixels of the current code. The first version
+    # of this job ran the demo under headless sway and captured with grim,
+    # but Ubuntu 24.04's apt sway (1.9) predates --headless, and building
+    # sway 1.12 from source was a 5-min detour. The overlay is a small
+    # piece of software rendering, so we just render it directly.
     if: github.event_name == 'push' && github.ref == 'refs/heads/master'
     runs-on: ubuntu-24.04
     permissions:
@@ -69,27 +84,24 @@ jobs:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
-      - name: Install compositor and screenshot tools
+      - name: Install fonts
+        # The screenshot example calls TextRenderer::from_system, which
+        # needs a real font on the runner.
         run: |
           sudo apt-get update
-          sudo apt-get install -y --no-install-recommends \
-            sway grim fonts-dejavu-core
-      - name: Build the overlay demo
-        run: cargo build --release --locked -p stt-overlay --example demo
-      - name: Capture the demo under headless sway
+          sudo apt-get install -y --no-install-recommends fonts-dejavu-core
+      - name: Render the overlay frames
         run: |
           set -o pipefail
-          .github/scripts/capture-screenshots.sh 2>&1 | tee /tmp/capture.log
-      # Same sign-in problem as the test job: push the interesting lines out
-      # as annotations.
+          cargo run --locked -p stt-overlay --example screenshot 2>&1 \
+            | tee /tmp/screenshot.log
       - name: Surface failures as annotations
         if: failure()
         run: |
-          n=0
-          while IFS= read -r chunk; do
-            n=$((n+1)); [ $n -gt 10 ] && break
-            echo "::error::${chunk//$'\n'/%0A}"
-          done < <(tail -c 4800 /tmp/capture.log | fold -w 480)
+          tail -c 4800 /tmp/screenshot.log | grep -E '^(error|warning|thread)' \
+            | head -10 | while IFS= read -r line; do
+              echo "::error::${line:0:480}"
+            done
       - name: Commit refreshed screenshots
         run: |
           git config user.name "github-actions[bot]"

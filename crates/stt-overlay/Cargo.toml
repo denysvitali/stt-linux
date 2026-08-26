@@ -18,3 +18,4 @@ wayland-client.workspace = true
 
 [dev-dependencies]
 tracing-subscriber = { workspace = true, features = ["env-filter"] }
+png = "0.17"
