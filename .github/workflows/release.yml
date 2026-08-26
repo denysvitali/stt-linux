@@ -1,0 +1,182 @@
+name: Release
+
+# Two entry points, one job:
+#
+#   * Push a v* tag (e.g. `git push origin v0.1.0`). The tag is the
+#     source of truth — git-cliff generates the changelog up to that
+#     tag and the GitHub Release is created in one shot.
+#
+#   * Run this workflow from the Actions tab. By default the workflow
+#     derives the next version from conventional-commits history with
+#     `git cliff --bumped-version`, builds the binaries, attaches them
+#     to a *draft* release, and stops. Review the draft, then push the
+#     same tag yourself to turn the draft into a real release (or pass
+#     `bump_and_release=true` to skip the review step).
+#
+# Linux x86_64 only. Cross-compile is deliberately out of scope for
+# v0.1.x (see RELEASE.md).
+
+on:
+  push:
+    tags:
+      - "v[0-9]+.[0-9]+.[0-9]+"
+  workflow_dispatch:
+    inputs:
+      bump_and_release:
+        description: "Push the derived tag and publish the release in one shot"
+        required: false
+        type: boolean
+        default: false
+      tag:
+        description: "Override the derived version (e.g. v0.1.0). Empty = use git-cliff."
+        required: false
+        type: string
+        default: ""
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Release
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Derive next version
+        id: version
+        # On a tag push, github.ref_name is the tag (e.g. v0.1.0) and we
+        # use it directly. On a manual dispatch we either honour the
+        # caller-supplied override or ask git-cliff to compute the next
+        # semver from conventional-commit history. There are no tags
+        # yet, so on the very first run --bumped-version returns 0.1.0
+        # (the project's pre-tag baseline).
+        run: |
+          set -euo pipefail
+          # git-cliff --bumped-version returns the bare semver (0.1.0)
+          # even when the tag pattern starts with 'v'. Normalise so the
+          # rest of the workflow only ever sees `vX.Y.Z`.
+          if [ "${GITHUB_REF_TYPE}" = "tag" ]; then
+            echo "tag=${GITHUB_REF_NAME}" >> "$GITHUB_OUTPUT"
+          elif [ -n "${{ inputs.tag }}" ]; then
+            echo "tag=${{ inputs.tag }}" >> "$GITHUB_OUTPUT"
+          else
+            tag=$(/tmp/tools/bin/git-cliff --bumped-version --tag-pattern 'v[0-9]+\.[0-9]+\.[0-9]+' --config cliff.toml)
+            case "${tag}" in v*) ;; *) tag="v${tag}" ;; esac
+            echo "tag=${tag}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Install git-cliff
+        # The action under the next step also installs git-cliff, but
+        # we need the binary on PATH now so the Derive step above can
+        # call it. The action will reuse the cached install.
+        run: |
+          curl -sSfL https://github.com/orhun/git-cliff/releases/download/v2.13.1/git-cliff-2.13.1-x86_64-unknown-linux-gnu.tar.gz \
+            -o /tmp/cliff.tar.gz
+          tar -xzf /tmp/cliff.tar.gz -C /tmp
+          install -m755 /tmp/git-cliff-2.13.1/git-cliff /tmp/tools/bin/git-cliff
+          /tmp/tools/bin/git-cliff --version
+
+      - name: Generate changelog
+        id: changelog
+        uses: orhun/git-cliff-action@v4
+        with:
+          config: cliff.toml
+          args: --current --strip header
+        env:
+          OUTPUT: CHANGELOG.md
+
+      - name: Install native build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            libssl-dev pkg-config libasound2-dev
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          cache-on-failure: true
+
+      - name: Re-run tests
+        # A release job must not ship red code that only CI happened to
+        # catch. This is the same `cargo test` the ci.yml test job runs;
+        # the screenshot job is unrelated and stays in ci.yml.
+        run: |
+          set -o pipefail
+          cargo test --workspace --locked 2>&1 | tee /tmp/test.log
+
+      - name: Surface test failures
+        if: failure()
+        run: |
+          grep -E '^(error|warning|thread|FAILED|---|.*: [0-9]+:)' /tmp/test.log \
+            | head -10 | while IFS= read -r line; do
+              echo "::error::${line:0:480}"
+            done
+
+      - name: Build stt + sttd (release)
+        run: |
+          set -o pipefail
+          cargo build --release --locked -p stt -p sttd 2>&1 \
+            | tee /tmp/build.log
+          strip target/release/stt target/release/sttd
+
+      - name: Surface build failures
+        if: failure()
+        run: |
+          grep -E '^(error|warning|thread|FAILED|---|.*: [0-9]+:)' /tmp/build.log \
+            | head -10 | while IFS= read -r line; do
+              echo "::error::${line:0:480}"
+            done
+
+      - name: Package binaries
+        env:
+          TAG: ${{ steps.version.outputs.tag }}
+        run: |
+          set -euo pipefail
+          for bin in stt sttd; do
+            tar -C target/release -cJf "${bin}-${TAG}-x86_64-unknown-linux-gnu.tar.xz" "${bin}"
+            ( cd target/release && sha256sum "${bin}" > "${bin}.sha256" )
+            mv "target/release/${bin}.sha256" "${bin}-${TAG}.sha256"
+          done
+
+      - name: Create or push tag
+        if: github.event_name == 'workflow_dispatch' && (inputs.bump_and_release || steps.version.outputs.tag == inputs.tag)
+        # On a manual dispatch the tag may not exist yet. If the caller
+        # asked for `bump_and_release`, create it and push; otherwise
+        # the release below will be a *draft* for review.
+        env:
+          TAG: ${{ steps.version.outputs.tag }}
+        run: |
+          set -euo pipefail
+          if git rev-parse "${TAG}" >/dev/null 2>&1; then
+            echo "tag ${TAG} already exists locally; nothing to do"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag -a "${TAG}" -m "Release ${TAG}"
+          git -c http.https://github.com/.extraheader="AUTHORIZATION: bearer ${GITHUB_TOKEN}" \
+            push origin "${TAG}"
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.version.outputs.tag }}
+          name: ${{ steps.version.outputs.tag }}
+          body_path: CHANGELOG.md
+          # On a manual dispatch the draft lets the user review the
+          # changelog and the binaries before the tag is pushed. On a
+          # tag push the tag is already public, so the release must
+          # go live in the same run.
+          draft: ${{ github.event_name == 'workflow_dispatch' && !inputs.bump_and_release }}
+          prerelease: false
+          files: |
+            stt-${{ steps.version.outputs.tag }}-x86_64-unknown-linux-gnu.tar.xz
+            stt-${{ steps.version.outputs.tag }}.sha256
+            sttd-${{ steps.version.outputs.tag }}-x86_64-unknown-linux-gnu.tar.xz
+            sttd-${{ steps.version.outputs.tag }}.sha256
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

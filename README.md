@@ -11,8 +11,10 @@ download.
 
 > **Status: in development.** Capture, transcription, the daemon,
 > clipboard/`wtype` injection, silence-based auto-stop and the recording
-> overlay with live transcript preview all work end to end. Packaging and a
-> first release are still to come.
+> overlay with live transcript preview all work end to end. Tagged releases
+> are produced by `release.yml`; every push to `master` also drops a fresh
+> `stt` + `sttd` pair as a 30-day workflow artifact — see
+> [`.github/RELEASE.md`](.github/RELEASE.md).
 
 ## Why
 
@@ -61,6 +63,18 @@ With `cargo install` — no clone, and it puts them in `~/.cargo/bin`:
 ```sh
 cargo install --git https://github.com/denysvitali/stt-linux stt sttd
 ```
+
+From a [release](https://github.com/denysvitali/stt-linux/releases) —
+grab the latest `stt-*` and `sttd-*` `.tar.xz` plus its `.sha256`, then:
+
+```sh
+tar -xJf stt-vX.Y.Z-x86_64-unknown-linux-gnu.tar.xz -C ~/.local/bin
+tar -xJf sttd-vX.Y.Z-x86_64-unknown-linux-gnu.tar.xz -C ~/.local/bin
+```
+
+Or track `master` straight from the Actions tab: the
+[`binaries` workflow](.github/workflows/binaries.yml) uploads a fresh
+`stt` and `sttd` pair on every push (30-day retention).
 
 From a clone, if you already have one:
 

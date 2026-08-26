@@ -1,0 +1,91 @@
+name: Binaries
+
+# Build stt + sttd on every push to master and upload them as workflow
+# artifacts. No GitHub Release, no tag — this is the "always have a
+# binary" path: reachable from the Actions tab for testing and for
+# download links that should track master.
+#
+# The full release pipeline (tag push, changelog, GitHub Release) lives
+# in release.yml. This one is intentionally minimal so a regression in
+# packaging cannot take the daily build down.
+
+on:
+  push:
+    branches: [master]
+  workflow_dispatch:
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build:
+    name: Build & upload stt + sttd
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - name: Install native build dependencies
+        # Same set the ci.yml test job uses: openssl-sys (via ort/ureq)
+        # needs libssl-dev, cpal needs the ALSA headers. No wtype /
+        # wl-clipboard here — those are runtime deps of the user's
+        # session, not link-time deps of the daemon.
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            libssl-dev pkg-config libasound2-dev
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          cache-on-failure: true
+
+      - name: Build stt + sttd (release)
+        # --locked so a stale Cargo.lock cannot sneak a different
+        # dependency graph into a binary that will be downloaded.
+        run: |
+          set -o pipefail
+          cargo build --release --locked -p stt -p sttd 2>&1 \
+            | tee /tmp/build.log
+          strip target/release/stt target/release/sttd
+
+      - name: Surface failures as annotations
+        if: failure()
+        run: |
+          grep -E '^(error|warning|thread|FAILED|---|.*: [0-9]+:)' /tmp/build.log \
+            | head -10 | while IFS= read -r line; do
+              echo "::error::${line:0:480}"
+            done
+
+      - name: Package binaries
+        # One tarball per binary, versioned by short SHA. Keeps the
+        # file names stable enough to link to from a PR or bug report
+        # without baking the SHA into the workflow.
+        run: |
+          short_sha="${GITHUB_SHA::7}"
+          for bin in stt sttd; do
+            tar -C target/release -cJf "${bin}-${short_sha}-x86_64-unknown-linux-gnu.tar.xz" "${bin}"
+            ( cd target/release && sha256sum "${bin}" > "${bin}.sha256" )
+            mv "target/release/${bin}.sha256" "${bin}-${short_sha}.sha256"
+          done
+          ls -la *.tar.xz *.sha256
+
+      - name: Upload stt
+        uses: actions/upload-artifact@v4
+        with:
+          name: stt
+          path: |
+            stt-*.tar.xz
+            stt-*.sha256
+          retention-days: 30
+          if-no-files-found: error
+
+      - name: Upload sttd
+        uses: actions/upload-artifact@v4
+        with:
+          name: sttd
+          path: |
+            sttd-*.tar.xz
+            sttd-*.sha256
+          retention-days: 30
+          if-no-files-found: error
