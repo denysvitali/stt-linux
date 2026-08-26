@@ -1,5 +1,7 @@
 # stt-linux
 
+[![CI](https://github.com/denysvitali/stt-linux/actions/workflows/ci.yml/badge.svg)](https://github.com/denysvitali/stt-linux/actions/workflows/ci.yml)
+
 Local speech-to-text dictation for Wayland. Press a key, speak, and the text
 appears in whatever you were typing into.
 
@@ -7,9 +9,10 @@ Everything runs on your machine. No network calls, no cloud inference, no
 telemetry — the only thing that ever leaves your computer is the one-time model
 download.
 
-> **Status: in development.** Milestones M0–M3 are done: capture, transcription,
-> the daemon, and clipboard/`wtype` injection all work end to end. Voice activity
-> detection, the recording overlay and packaging are still to come.
+> **Status: in development.** Capture, transcription, the daemon,
+> clipboard/`wtype` injection, silence-based auto-stop and the recording
+> overlay with live transcript preview all work end to end. Packaging and a
+> first release are still to come.
 
 ## Why
 
@@ -20,6 +23,21 @@ steals focus and thereby breaks its own paste step.
 
 This is a pure-Rust daemon built for Wayland specifically, with the awkward
 parts of the platform treated as the design problem rather than an afterthought.
+
+## What it looks like
+
+While you speak, a small recording overlay floats above everything — never
+focusable, so it can never become the target of its own paste step — with a
+live level meter until words arrive, then the transcript as it is being
+recognised:
+
+| Listening — the waveform reacts to your voice | A live transcript as you speak |
+|:---:|:---:|
+| ![Listening — a live waveform in the overlay](assets/overlay-meter.png) | ![A live transcript appearing in the overlay](assets/overlay-live.png) |
+
+Both frames come straight from CI: whenever the overlay code changes, a
+headless compositor runs the demo (`cargo run -p stt-overlay --example demo`)
+and commits what `grim` captures, so the pictures here cannot go stale.
 
 ## Requirements
 
@@ -41,7 +59,7 @@ daemon that holds the model. You need both.
 With `cargo install` — no clone, and it puts them in `~/.cargo/bin`:
 
 ```sh
-cargo install --git https://github.com/dvitali/stt-linux stt sttd
+cargo install --git https://github.com/denysvitali/stt-linux stt sttd
 ```
 
 From a clone, if you already have one:
@@ -148,6 +166,11 @@ paste_keys = "ctrl+v"
 # Always leave the transcript on the clipboard, whichever backend runs, so a
 # misdirected or failed injection never loses your words.
 always_copy = true
+
+[overlay]
+# The recording indicator. Set enabled = false if you want dictation with no
+# visual feedback at all.
+anchor = "bottom"           # "bottom", "top" or "center"
 ```
 
 ### Clipboard-only mode
@@ -176,6 +199,12 @@ The daemon exists because the ASR model takes about 1.7 s to load. Loading it
 once and keeping it in memory is what makes dictation feel instant — inference
 itself runs at roughly 19x realtime on CPU, so a 10-second utterance becomes
 text in about half a second.
+
+The overlay is a `wlr-layer-shell` surface with `KeyboardInteractivity::None`:
+it sits above fullscreen windows but can never take focus, so it can never
+steal the very keystrokes it exists to accompany. It is rendered by hand onto
+a shared-memory buffer — no GUI toolkit — which is why it runs as a thread
+inside the daemon instead of a separate process.
 
 ### Two things it is careful about
 
@@ -221,6 +250,12 @@ stt transcribe /tmp/t.wav --bench         # transcription only, with timings
 
 If dictation produces nothing, run these two in order — they tell you whether
 the problem is the microphone or the model.
+
+To iterate on the overlay in isolation, without a daemon or a microphone:
+
+```sh
+cargo run -p stt-overlay --example demo   # sweeps the meter, then a transcript
+```
 
 ## Licence
 

@@ -1,0 +1,67 @@
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  fmt:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt
+      - run: cargo fmt --all --check
+
+  test:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Install native build dependencies
+        # libssl-dev for openssl-sys (via ureq); already on the runner image,
+        # but pinned here so the job does not silently depend on that.
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends libssl-dev pkg-config
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo clippy --all-targets --locked
+      - run: cargo test --workspace --locked
+
+  screenshots:
+    # Renders the overlay demo under a headless wlroots compositor and
+    # captures frames with grim, so the README shows real pixels that stay
+    # current. Only pushes to master, since it commits its output.
+    if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Install compositor and screenshot tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            sway grim fonts-dejavu-core
+      - name: Build the overlay demo
+        run: cargo build --release --locked -p stt-overlay --example demo
+      - name: Capture the demo under headless sway
+        run: .github/scripts/capture-screenshots.sh
+      - name: Commit refreshed screenshots
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add assets/overlay-*.png
+          if git diff --cached --quiet; then
+            echo "screenshots unchanged; nothing to commit"
+            exit 0
+          fi
+          git commit -m "ci: refresh overlay screenshots [skip ci]"
+          git push
