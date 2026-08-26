@@ -44,9 +44,19 @@ jobs:
         # $PATH to take the protocol-missing branch. ~30 s meson build.
         run: |
           git clone --depth=1 https://github.com/atx/wtype /tmp/wtype
-          meson setup /tmp/wtype/build /tmp/wtype >/dev/null
-          sudo ninja -C /tmp/wtype/build install >/dev/null
+          meson setup /tmp/wtype/build /tmp/wtype 2>&1 | tee /tmp/wtype-configure.log
+          sudo ninja -C /tmp/wtype/build install 2>&1 | tee /tmp/wtype-build.log
           which wtype && wtype --version
+      - name: Surface wtype build failures as annotations
+        if: failure()
+        run: |
+          for log in /tmp/wtype-configure.log /tmp/wtype-build.log; do
+            [ -f "$log" ] || continue
+            tail -c 4800 "$log" | grep -E '^(ERROR|FAILED|error|.*: [0-9]+:)' \
+              | head -10 | while IFS= read -r line; do
+                echo "::error::${line:0:480}"
+              done
+          done
       - name: Run clippy
         run: |
           set -o pipefail
@@ -63,9 +73,10 @@ jobs:
         run: |
           for log in /tmp/clippy.log /tmp/test.log; do
             [ -f "$log" ] || continue
-            grep -E '^error|^ *--> ' "$log" | head -10 | while IFS= read -r line; do
-              echo "::error::${line:0:480}"
-            done
+            grep -E '^(error|warning|thread|FAILED|---|.*: [0-9]+:)' "$log" \
+              | head -10 | while IFS= read -r line; do
+                echo "::error::${line:0:480}"
+              done
           done
 
   screenshots:
