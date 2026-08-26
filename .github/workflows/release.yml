@@ -149,6 +149,7 @@ jobs:
         # the release below will be a *draft* for review.
         env:
           TAG: ${{ steps.version.outputs.tag }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
           if git rev-parse "${TAG}" >/dev/null 2>&1; then
