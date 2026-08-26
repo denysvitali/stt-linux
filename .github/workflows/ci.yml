@@ -26,37 +26,16 @@ jobs:
       - name: Install native build dependencies
         # openssl-sys (via ort-sys/ureq) needs libssl-dev; cpal needs the
         # ALSA headers. wl-clipboard gives the inject tests the binary
-        # paths they probe for. wtype is not packaged on Ubuntu noble, so
-        # it is built from source below; meson + ninja are needed for that
-        # step.
+        # paths they probe for.
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
-            libssl-dev pkg-config libasound2-dev \
-            libxkbcommon-dev wl-clipboard meson ninja-build cmake build-essential
+            libssl-dev pkg-config libasound2-dev wl-clipboard
       - uses: Swatinem/rust-cache@v2
         with:
           # Keep partially-built artifacts even when a job fails, so
           # iteration on a red build does not start from scratch.
           cache-on-failure: true
-      - name: Build wtype
-        # wtype is not packaged on Ubuntu noble; the inject probes need it on
-        # $PATH to take the protocol-missing branch. ~30 s meson build.
-        run: |
-          git clone --depth=1 https://github.com/atx/wtype /tmp/wtype
-          meson setup /tmp/wtype/build /tmp/wtype 2>&1 | tee /tmp/wtype-configure.log
-          sudo ninja -C /tmp/wtype/build install 2>&1 | tee /tmp/wtype-build.log
-          which wtype && wtype --version
-      - name: Surface wtype build failures as annotations
-        if: failure()
-        run: |
-          for log in /tmp/wtype-configure.log /tmp/wtype-build.log; do
-            [ -f "$log" ] || continue
-            tail -c 4800 "$log" | grep -E '^(ERROR|FAILED|error|.*: [0-9]+:)' \
-              | head -10 | while IFS= read -r line; do
-                echo "::error::${line:0:480}"
-              done
-          done
       - name: Run clippy
         run: |
           set -o pipefail

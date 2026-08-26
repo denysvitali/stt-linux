@@ -109,8 +109,12 @@ fn probe_copy_only(globals: Option<&Globals>) -> Probe {
 }
 
 fn probe_wtype(globals: Option<&Globals>) -> Probe {
+    probe_wtype_with(which("wtype"), globals)
+}
+
+fn probe_wtype_with(wtype_bin: Option<PathBuf>, globals: Option<&Globals>) -> Probe {
     let b = InjectBackend::Wtype;
-    let Some(bin) = which("wtype") else {
+    let Some(bin) = wtype_bin else {
         return Probe::no(b, "`wtype` not found on $PATH");
     };
     match globals {
@@ -222,8 +226,11 @@ mod tests {
 
     #[test]
     fn wtype_unavailable_without_the_protocol() {
+        // Pretend wtype is on $PATH so the test takes the protocol-missing
+        // branch; without that, the detail is "`wtype` not found" and the
+        // assertion below would be wrong by construction.
         let g = globals_with(&[wayland::LAYER_SHELL]);
-        let p = probe_wtype(Some(&g));
+        let p = probe_wtype_with(Some("/usr/bin/wtype".into()), Some(&g));
         assert!(!p.is_usable());
         assert!(p.detail.contains(wayland::VIRTUAL_KEYBOARD));
     }
