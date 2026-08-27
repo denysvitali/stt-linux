@@ -154,19 +154,21 @@ jobs:
         env:
           TAG: ${{ steps.version.outputs.tag }}
           SHA: ${{ github.sha }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
-          status=$(gh api \
-            --method POST \
+          status=$(curl -sS -o /tmp/tag-resp.json -w '%{http_code}' \
+            -X POST \
+            -H "Authorization: token ${GITHUB_TOKEN}" \
             -H "Accept: application/vnd.github+json" \
-            "/repos/${GITHUB_REPOSITORY}/git/refs" \
-            -f ref="refs/tags/${TAG}" \
-            -f sha="${SHA}" \
-            --silent --output /dev/null --write-out '%{http_code}' || true)
+            -H "Content-Type: application/json" \
+            -d "{\"ref\":\"refs/tags/${TAG}\",\"sha\":\"${SHA}\"}" \
+            "https://api.github.com/repos/${GITHUB_REPOSITORY}/git/refs" \
+            || true)
           case "${status}" in
             201) echo "created tag ${TAG} at ${SHA}" ;;
             422) echo "tag ${TAG} already exists; continuing" ;;
-            *)   echo "::error::tag create returned ${status}" >&2; exit 1 ;;
+            *)   echo "::error::tag create returned ${status}, body: $(cat /tmp/tag-resp.json)" >&2; exit 1 ;;
           esac
 
       - name: Create GitHub Release
