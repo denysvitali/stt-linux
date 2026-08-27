@@ -142,25 +142,32 @@ jobs:
             mv "target/release/${bin}.sha256" "${bin}-${TAG}.sha256"
           done
 
-      - name: Create or push tag
+      - name: Create tag via API
         if: github.event_name == 'workflow_dispatch' && (inputs.bump_and_release || steps.version.outputs.tag == inputs.tag)
-        # On a manual dispatch the tag may not exist yet. If the caller
-        # asked for `bump_and_release`, create it and push; otherwise
-        # the release below will be a *draft* for review.
+        # On a manual dispatch the tag may not exist yet. Create it
+        # through the GitHub API rather than `git push` so we don't
+        # depend on the runner's git remote being auth-configured for
+        # tag writes — the API path is the only one that consistently
+        # works across the various proxy / non-proxy environments
+        # this workflow might be exercised in. If the tag already
+        # exists the API call returns 422 and we treat that as OK.
         env:
           TAG: ${{ steps.version.outputs.tag }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SHA: ${{ github.sha }}
         run: |
           set -euo pipefail
-          if git rev-parse "${TAG}" >/dev/null 2>&1; then
-            echo "tag ${TAG} already exists locally; nothing to do"
-            exit 0
-          fi
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git tag -a "${TAG}" -m "Release ${TAG}"
-          git -c http.https://github.com/.extraheader="AUTHORIZATION: bearer ${GITHUB_TOKEN}" \
-            push origin "${TAG}"
+          status=$(gh api \
+            --method POST \
+            -H "Accept: application/vnd.github+json" \
+            "/repos/${GITHUB_REPOSITORY}/git/refs" \
+            -f ref="refs/tags/${TAG}" \
+            -f sha="${SHA}" \
+            --silent --output /dev/null --write-out '%{http_code}' || true)
+          case "${status}" in
+            201) echo "created tag ${TAG} at ${SHA}" ;;
+            422) echo "tag ${TAG} already exists; continuing" ;;
+            *)   echo "::error::tag create returned ${status}" >&2; exit 1 ;;
+          esac
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
